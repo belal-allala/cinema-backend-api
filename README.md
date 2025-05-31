@@ -1,166 +1,121 @@
-# Fil Rouge YouCode Année 1
+# Mini-Projet : Système de Gestion de Tickets de Cinéma - Backend
 
-#### Vu que nous sommes une ESN qui se spécialise dans la technologie PHP, nous avons opté pour la création d'un boilerplate permettant à nos futurs collaborateurs de développer des solutions digitales dans des domaines variés. En tant qu'apprenants, votre rôle est de comprendre cette architecture, respecter les conventions établies dans ce projet, et répondre aux besoins fonctionnels qui vous seront partagés.
+Ce dépôt contient la partie **backend** du mini-projet "Système de Gestion de Tickets de Cinéma", développé sur la base d'un boilerplate PHP fourni. L'objectif principal est de démontrer la capacité à comprendre, étendre et respecter une architecture PHP orientée objet existante pour implémenter des fonctionnalités métier complexes.
 
-## Objectif du Mini-Projet
+---
 
-Ce mini-projet vise principalement à évaluer les compétences en POO (programmation orientée objet) des apprenants.
+## Contexte du Projet Initial (Boilerplate)
 
-### Étapes préliminaires
+Ce projet est un exemple de backend conçu pour être consommé par différentes interfaces frontend. Il suit une architecture structurée, mettant l'accent sur les principes de la POO.
 
-- Comprendre la structure du projet, notamment le cœur du système (core).
+## Objectif du Mini-Projet (Système de Cinéma)
 
-### Objectifs d'apprentissage
+Développer une API RESTful destinée aux caissiers d'un cinéma pour faciliter la gestion quotidienne des ventes de tickets et la programmation des séances. Ce projet ne nécessite pas de système d'authentification.
 
-- Comprendre les bases de la programmation orientée objet.
+Les fonctionnalités clés incluent :
+- Enregistrer et gérer les informations des clients.
+- Consulter et gérer la programmation des séances (2D et 3D).
+- Créer, consulter et gérer les ventes de tickets selon les disponibilités.
+- Calculer automatiquement les coûts des tickets (prix de séance, TVA, lunettes 3D).
+- Maintenir une base de données actualisée de toutes les informations.
+
+## Entités du Système (Implémentées)
+
+En plus de l'entité `Employee` (fournie par le boilerplate, conservée et fonctionnelle), le projet implémente les entités suivantes :
+
+- **Client** : Représente les personnes achetant des tickets.
+    - Attributs : `nom`, `email`, `phone`.
+    - Contrainte : Un client peut acheter **5 places au maximum par séance**.
+- **Seance** : Modélise les projections programmées dans le cinéma. Il s'agit d'une classe abstraite permettant l'extension selon les types de projection (2D ou 3D).
+    - Attributs communs : `film`, `horaire`, `prix` (prix de base), `salle`, `placesDisponibles`.
+    - **Seance2D** : Premier type de Séance.
+        - Attributs spécifiques : `qualiteImage`.
+        - Contrainte : Tarif standard pour projection classique.
+    - **Seance3D** : Deuxième type de Séance.
+        - Attributs spécifiques : `technologie3D`, `lunettesIncluses` (boolean et coûte 20 MAD si `true`).
+        - Contrainte : Tarif majoré pour projection immersive.
+- **Ticket** : Représente un ticket de cinéma vendu par le caissier.
+    - Attributs : `nombrePlaces`, `montantTotal`, `statut` (VENDU, RÉSERVÉ, ANNULÉ).
+    - Contrainte : Le `montantTotal` se calcule automatiquement selon le nombre de places, le type de séance (incluant le coût des lunettes 3D), et la TVA (20%).
+    - Lié à une entité `Client` et une entité `Seance`.
+
+## Objectifs d'apprentissage
+
+Ce projet a pour objectif d'évaluer les compétences en POO, notamment :
+- Comprendre les bases de la programmation orientée objet (encapsulation, héritage, polymorphisme).
 - Concevoir et écrire des requêtes SQL efficaces qui permettent d'extraire précisément les données.
-- Appliquer le principe de couplage faible.
+- Appliquer le principe de couplage faible et de séparation des préoccupations.
 - Développer du code réutilisable.
 - Comprendre et utiliser l'injection de dépendances.
-- Utiliser le design pattern Singleton dans un contexte de serveur web.
+- Utiliser le design pattern Singleton dans un contexte de serveur web (pour la connexion BDD).
 
-### Prérequis
+---
 
-1. **Connexion à la base de données**
-   Pour les apprenants ayant des compétences SQL, initialisez la base de données pour établir la connexion (voir l'entrypoint `index.php`).
+## Architecture du Système
 
-   ```php
-   $ds = new PostgreDataSource(
-       'localhost',
-       5432,
-       'your_database',
-       'your_user',
-       'your_pass'
-   );
+Le backend est basé sur le principe **MVC2** (Model-View-Controller avec un Front Controller), intégrant un **router dispatcher** qui analyse les URLs et appelle dynamiquement la méthode du contrôleur correspondante (inspiré d'un dispatcher servlet).
 
-   Database::init($ds);
-   // voir use Core\DataSources\*;
-   ```
+Il respecte une architecture en couches claires :
 
-2. **Structure du projet**
-   Les implémentations doivent se faire dans le répertoire `App/**`.
+-   **Models** : Classes PHP représentant les entités de la base de données (ex: `Client.php`, `Seance.php`, `Ticket.php`). Elles respectent l'encapsulation et implémentent `JsonSerializable`.
+-   **Repositories** : Classes d'accès aux données (DAO). Chaque Repository étend `Core\Repository` ou `Core\Facades\RepositoryMutations` (pour les méthodes CRUD génériques `save`, `update`, `delete`).
+-   **Services** : Couche de logique métier. Les services implémentent leurs interfaces correspondantes (ex: `ClientService.php` et `ClientDefault.php`), garantissant un couplage faible et une meilleure testabilité.
+-   **Controllers** : Gèrent les requêtes HTTP. Ils sont placés dans `App/controllers/`, terminent par `*Controller.php`, héritent de `Core\Controller`, et peuvent implémenter `Core\Contracts\ResourceController` pour le routage RESTful automatique.
 
-3. **Models**
-   Contiennent les modèles de l'application (respecter l'encapsulation, implémenter `JsonSerializable` ou utiliser une couche `entities` qui l'implémente).
+## Routage
 
-4. **Repositories**
-   Classes d'accès aux données. Chaque Repository doit étendre `Repository` ou `RepositoryMutations` (prévoit `create`, `update`, `delete`). Voir `EmployeeRepository`.
-
-5. **Services**
-   Contient la logique métier, avec deux sous-dossiers : `Implementations` et `Interfaces`. Chaque service implémente son interface.
-
-6. **Controllers**
-   Doivent être placés dans `controllers/` et se terminer par `*Controller.php`. Ils doivent hériter de `Controller`.
-
-### Routage
-
-- **Convention RESTful** :
-
-  - Implémenter `ResourceController` pour que les routes soient automatiquement enregistrées.
-
+-   **Convention RESTful** : Les contrôleurs implémentant `ResourceController` bénéficient d'un routage automatique pour les opérations CRUD standard (`index`, `show`, `store`, `update`, `destroy`).
     | Méthode HTTP | Chemin              | Méthode Contrôleur |
-    | ------------ | ------------------- | ------------------ |
-    | GET          | /prefix/plural      | index              |
-    | GET          | /prefix/plural/{id} | show               |
-    | POST         | /prefix/plural      | store              |
-    | PUT/PATCH    | /prefix/plural/{id} | update             |
-    | DELETE       | /prefix/plural/{id} | destroy            |
+    | :----------- | :------------------ | :----------------- |
+    | `GET`        | `/api/v1/plural`    | `index`            |
+    | `GET`        | `/api/v1/plural/{id}` | `show`             |
+    | `POST`       | `/api/v1/plural`    | `store`            |
+    | `PUT`/`PATCH`| `/api/v1/plural/{id}` | `update`           |
+    | `DELETE`     | `/api/v1/plural/{id}` | `destroy`          |
+-   **Par annotation/attribut** : Il est également possible de définir des routes spécifiques sur des méthodes via l'attribut `#[Core\Decorators\Route('chemin', method: RouteMethod::VERB)]`.
+-   **Gestion des CORS** : Le routeur et les contrôleurs sont configurés pour gérer les requêtes CORS (Cross-Origin Resource Sharing) afin de permettre la communication avec un frontend sur une origine différente.
 
-- **Par annotation/attribut** :
+## Installation et Configuration (avec Laragon et PostgreSQL)
 
-  - Utilisez l'attribut `Route` pour spécifier le chemin, et pour chaque méthode, définissez le type HTTP et la sous-route (voir `SalaryController`).
+1.  **Cloner le dépôt :**
+    ```bash
+    git clone https://github.com/belal-allala/youcode-cinema-backend.git cinema_backend
+    ```
+2.  **Placer le projet :** Copiez le dossier `cinema_backend` dans le répertoire `www/Cinema/` de votre installation Laragon (par exemple, `c:/Laragon/www/Cinema/cinema_backend`).
+3.  **Installer les dépendances Composer :**
+    Naviguez vers le dossier racine du projet (`cinema_backend`) dans votre terminal et exécutez :
+    ```bash
+    composer install
+    ```
+4.  **Configuration de la base de données PostgreSQL :**
+    -   Ouvrez votre client PostgreSQL (pgAdmin, DBeaver, etc.).
+    -   Créez une base de données nommée `fil_rouge_rattrapage`.
+    -   Ouvrez le fichier `Database/init.sql` à la racine de ce projet.
+    -   Copiez TOUT le contenu de `init.sql` et exécutez-le dans votre base de données `fil_rouge_rattrapage`. Cela créera les tables `employees`, `clients`, `seances`, `tickets` et les remplira avec des données d'exemple.
+    -   **Adaptez la connexion dans `index.php` :** Ouvrez `index.php` à la racine du projet et assurez-vous que la configuration `PostgreDataSource` correspond à vos identifiants PostgreSQL :
+        ```php
+        // Dans index.php
+        use Core\DataSources\PostgreDataSource;
 
-- **Tester vos routes** :
+        $ds = new PostgreDataSource(
+            'localhost',            // Hôte de votre BDD
+            5432,                   // Port PostgreSQL (souvent 5432)
+            'fil_rouge_rattrapage', // Nom de votre base de données
+            'your_user',            // Votre utilisateur PostgreSQL
+            'your_password'         // Votre mot de passe PostgreSQL
+        );
+        Database::init($ds);
+        ```
+5.  **Démarrer Laragon :** Assurez-vous que les services Apache/Nginx et PostgreSQL de Laragon sont en cours d'exécution.
+6.  **Accéder à l'API :** Votre API devrait être accessible via l'hôte virtuel créé par Laragon, par exemple : `http://cinema.test/cinema_backend/`. Accéder à cette URL devrait afficher la liste des routes de l'API en format JSON.
 
-  - Exemple : Projet dans `/www/example` → accéder via `localhost/example` ou `localhost/public/docs` pour une UI des endpoints.
+## Documentation et Tests
 
-  ![Api Docs Example](./public/example/1.png)
+-   Pour tester les endpoints de l'API (Clients, Séances, Tickets), utilisez un outil comme **Postman** ou **Insomnia**.
+-   Vous pouvez consulter la [Collection Postman originale du boilerplate](https://www.postman.com/simplon-devs/youcode-fil-rouge-a1/collection/9x2u8lq/youcode-fil-rouge-rattrapage) pour voir des exemples de requêtes (pour l'entité `Employee`). Adaptez ces exemples pour vos nouvelles entités (`clients`, `seances`, `tickets`).
 
-# Installation
+## Recommandations
 
-- Cloner le dépôt : `github.com/zziane/boilerplate-php-fy1-sql`
-- Copier dans le serveur Apache (`wamp64` ou `xampp`) : `c:/wamp64/www/exemple` ou `c:/xampp/htdocs/exemple`
-- Lancer `composer install` pour les dépendances (ex. `doctrine/inflector`)
-- Initialiser la base via le script dans `database/`
-- Adapter la datasource (`MysqlDataSource` ou `PostgreDataSource`)
-- Tester l'application via les endpoints générés
-
-# Documentation
-
-## Contrôleur
-
-- Étendre `Core\Controller`, qui expose `json()` pour réponse CORS-friendly, et dispose de l'objet `Request`.
-
-## Classe `Request`
-
-Gère l'accès aux parties d'une requête HTTP : corps, fichiers, headers, paramètres GET...
-
-### Méthodes disponibles
-
-- `__construct()` : initialise méthode HTTP, headers, fichiers, JSON body (si applicable).
-- `input(string $key, $default = null)` : valeur POST/JSON
-- `file(string $key): ?array` : infos fichier envoyé
-- `hasFile(string $key): bool`
-- `headers(): array`
-- `all(): array`
-- `param(?string $key = null): mixed`
-- `getMethod()` : méthode HTTP utilisée
-- `relativeUrl(): string` : URL relative (utile pour router)
-
-## Classe `Repository`
-
-Applique le pattern Repository. Fournit une base d'accès générique aux données.
-
-### Attributs
-
-- `protected Database $db`
-- `protected string $tableName`
-
-### Méthodes
-
-- `get(array $data, string $key)`
-- `arrayMapper(array $data): array`
-- `abstract protected function mapper(array $data): object`
-
-## Classe `RepositoryMutations`
-
-Étend `Repository`, fournit des méthodes génériques CRUD.
-
-### Méthodes
-
-- `save(array $data): int` → `INSERT INTO ...`
-- `update(array $data, array $clauses): bool` → `UPDATE ...`
-- `delete(array $clauses): bool` → `DELETE FROM ...`
-
-### Exemple d'utilisation
-
-```php
-class EmployeeRepository extends RepositoryMutations
-{
-    public function __construct()
-    {
-        parent::__construct('employees');
-    }
-
-    protected function mapper(array $data): object
-    {
-        return new Employee($data['id'], $data['name'], $data['email']);
-    }
-}
-```
-
-RepositoryMutations est inspiré de `CrudRepository` de Spring Boot.
-
-# Architecture
-
-Le système est basé sur le principe **MVC2**, avec un **router dispatcher** qui analyse les URLs et appelle dynamiquement la méthode du contrôleur correspondante (comme un dispatcher servlet).
-
-# Pour tester sur Postman
-
-[Collection Postman](https://www.postman.com/simplon-devs/youcode-fil-rouge-a1/collection/9x2u8lq/youcode-fil-rouge-rattrapage)
-
-# Recommandations
-
-- Respecter la structure `App/`
-- Trouver du plaisir dans la réalisation 😉
-- **Bon courage !!**
+-   Respectez scrupuleusement la structure du dossier `App/`.
+-   Trouvez du plaisir dans la réalisation du projet !
+-   **Bon courage !!**
